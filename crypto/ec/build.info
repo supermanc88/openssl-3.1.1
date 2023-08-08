@@ -3,7 +3,7 @@ IF[{- !$disabled{asm} -}]
   $ECASM_x86=ecp_nistz256.c ecp_nistz256-x86.S
   $ECDEF_x86=ECP_NISTZ256_ASM
 
-  $ECASM_x86_64=ecp_nistz256.c ecp_nistz256-x86_64.s x25519-x86_64.s
+  $ECASM_x86_64=ecp_nistz256.c ecp_sm2z256.c ecp_sm2z256-x86_64.s ecp_nistz256-x86_64.s x25519-x86_64.s
   $ECDEF_x86_64=ECP_NISTZ256_ASM X25519_ASM
 
   $ECASM_ia64=
@@ -59,7 +59,7 @@ $COMMON=ec_lib.c ecp_smpl.c ecp_mont.c ecp_nist.c ec_cvt.c ec_mult.c \
         curve448/arch_32/f_impl32.c
 
 IF[{- !$disabled{'ec_nistp_64_gcc_128'} -}]
-  $COMMON=$COMMON ecp_nistp224.c ecp_nistp256.c ecp_nistp521.c ecp_nistputil.c
+  $COMMON=$COMMON ecp_nistp224.c ecp_nistp256.c ecp_nistp521.c ecp_nistputil.c ecp_sm2p256.c
 ENDIF
 
 SOURCE[../../libcrypto]=$COMMON ec_ameth.c ec_pmeth.c ecx_meth.c \
@@ -85,6 +85,10 @@ GENERATE[ecp_nistz256-x86.S]=asm/ecp_nistz256-x86.pl
 GENERATE[ecp_nistz256-x86_64.s]=asm/ecp_nistz256-x86_64.pl
 
 GENERATE[ecp_nistz256-avx2.s]=asm/ecp_nistz256-avx2.pl
+
+GENERATE[ecp_sm2z256-x86_64.s]=asm/ecp_sm2z256-x86_64.pl
+
+GENERATE[ecp_sm2z256-avx2.s]=asm/ecp_sm2z256-avx2.pl
 
 GENERATE[ecp_nistz256-sparcv9.S]=asm/ecp_nistz256-sparcv9.pl
 INCLUDE[ecp_nistz256-sparcv9.o]=..

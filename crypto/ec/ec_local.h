@@ -54,14 +54,22 @@ struct ec_method_st {
     void (*group_clear_finish) (EC_GROUP *);
     int (*group_copy) (EC_GROUP *, const EC_GROUP *);
     /* used by EC_GROUP_set_curve, EC_GROUP_get_curve: */
+    /* 设置和获取这个曲线的参数，素数域p， 曲线参数a、b，这样可以确定使用哪个椭圆曲线方程 */
     int (*group_set_curve) (EC_GROUP *, const BIGNUM *p, const BIGNUM *a,
                             const BIGNUM *b, BN_CTX *);
     int (*group_get_curve) (const EC_GROUP *, BIGNUM *p, BIGNUM *a, BIGNUM *b,
                             BN_CTX *);
     /* used by EC_GROUP_get_degree: */
+    /* 函数会返回该椭圆曲线的阶数,即在该椭圆曲线上定义的点群的阶数。 */
     int (*group_get_degree) (const EC_GROUP *);
+    /* group_order_bits函数用于获取EC_GROUP表示的椭圆曲线点群的阶数的二进制位长度。 */
     int (*group_order_bits) (const EC_GROUP *);
     /* used by EC_GROUP_check: */
+    /* group_check_discriminant函数用于检查一个EC_GROUP的判别式是否合法。 
+        如果判别式为0,表示曲线方程参数不合法,不能定义一个合法的椭圆曲线。
+        这个函数用于在设置曲线参数后对其合法性进行检查,确保定义的椭圆曲线合理正确。
+        它返回一个整数表示检查结果:0表示判别式不合法,1表示判别式合法。
+    */
     int (*group_check_discriminant) (const EC_GROUP *, BN_CTX *);
     /*
      * used by EC_POINT_new, EC_POINT_free, EC_POINT_clear_free,
@@ -79,12 +87,56 @@ struct ec_method_st {
      * EC_POINT_get_affine_coordinates,
      * EC_POINT_set_compressed_coordinates:
      */
+    /*-
+     * point_set_to_infinity函数用于将一个椭圆曲线点设置为“无穷远点”。
+     * 通常用来验证一个点是否是无穷远点，很多时候需要验证传入的点为非无穷远点。
+     */
     int (*point_set_to_infinity) (const EC_GROUP *, EC_POINT *);
+    /*-
+     * point_set_affine_coordinates函数用于为一个椭圆曲线点设置affine坐标.
+     * 它的参数包含:
+     * const EC_GROUP *group:点所在的椭圆曲线组.
+     * EC_POINT *point:要设置坐标的点.
+     * const BIGNUM *x:点的x坐标.
+     * const BIGNUM *y:点的y坐标.
+     * BN_CTX *ctx:坐标计算的临时变量上下文.
+     * 该函数会将point表示的曲线点的坐标设置为传入的x和y值.
+     * 这里的坐标是仿射坐标,是曲线上点的一种直接表示法。设置了坐标后,该点就可以参与椭圆曲线的点加法或标量乘法运算.
+     */
     int (*point_set_affine_coordinates) (const EC_GROUP *, EC_POINT *,
                                          const BIGNUM *x, const BIGNUM *y,
                                          BN_CTX *);
+    /*-
+     * point_get_affine_coordinates函数用于获取一个椭圆曲线点的仿射坐标.
+     * 它的参数包含:
+     * const EC_GROUP *group:点所在的椭圆曲线组.
+     * const EC_POINT *point:要获取坐标的点.
+     * BIGNUM *x:保存x坐标的大数对象.
+     * BIGNUM *y:保存y坐标的大数对象.
+     * BN_CTX *ctx:坐标转换的临时变量上下文.
+     * 该函数会提取point表示的曲线点的当前坐标,并存储到输出参数x和y中.
+     * 如果点当前不是以仿射坐标表达,会先进行转换.
+     * 它返回1表示获取坐标成功,0表示失败(比如点为无穷远点时).
+     * 调用者通过传入BIGNUM类型的x和y指针获取到曲线点的仿射坐标表示.
+    */
     int (*point_get_affine_coordinates) (const EC_GROUP *, const EC_POINT *,
                                          BIGNUM *x, BIGNUM *y, BN_CTX *);
+    /*-
+     * point_set_compressed_coordinates函数用于为一个椭圆曲线点设置压缩坐标表示。
+     * 
+     * 它的参数包含:
+     * 
+     * const EC_GROUP *group: 点所在的椭圆曲线组。
+     * EC_POINT *point: 要设置压缩坐标的点。
+     * const BIGNUM *x: 点的x坐标。
+     * int y_bit: 点的y坐标的符号位,0表示正,1表示负。
+     * BN_CTX *ctx: 坐标转换的临时变量上下文。
+     * 椭圆曲线点可以用压缩表示来节省空间,只存储x坐标和y坐标的符号位。
+     * 
+     * 该函数将根据传入的x坐标和y_bit来设置point表示的曲线点的压缩坐标。
+     * 
+     * 压缩坐标能减少存储空间,但需要转换才能进行点运算。
+    */
     int (*point_set_compressed_coordinates) (const EC_GROUP *, EC_POINT *,
                                              const BIGNUM *x, int y_bit,
                                              BN_CTX *);
@@ -95,13 +147,17 @@ struct ec_method_st {
     int (*oct2point) (const EC_GROUP *, EC_POINT *, const unsigned char *buf,
                       size_t len, BN_CTX *);
     /* used by EC_POINT_add, EC_POINT_dbl, ECP_POINT_invert: */
+    /* r = a + b */
     int (*add) (const EC_GROUP *, EC_POINT *r, const EC_POINT *a,
                 const EC_POINT *b, BN_CTX *);
+    /* r = 2a */
     int (*dbl) (const EC_GROUP *, EC_POINT *r, const EC_POINT *a, BN_CTX *);
+    /* 求p的逆点，逆点加原点等于无穷远点 */
     int (*invert) (const EC_GROUP *, EC_POINT *, BN_CTX *);
     /*
      * used by EC_POINT_is_at_infinity, EC_POINT_is_on_curve, EC_POINT_cmp:
      */
+    /* is_at_infinity函数用于检查一个椭圆曲线点是否为无穷远点O。 */
     int (*is_at_infinity) (const EC_GROUP *, const EC_POINT *);
     int (*is_on_curve) (const EC_GROUP *, const EC_POINT *, BN_CTX *);
     int (*point_cmp) (const EC_GROUP *, const EC_POINT *a, const EC_POINT *b,
@@ -132,6 +188,7 @@ struct ec_method_st {
      * may treat it as an unusual input, without any constant-timeness
      * guarantee.
      */
+    /* generator是曲线基点. 这可以用来计算乘基点kG,或多点乘法等关联密码学运算. */
     int (*mul) (const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
                 size_t num, const EC_POINT *points[], const BIGNUM *scalars[],
                 BN_CTX *);
@@ -144,9 +201,12 @@ struct ec_method_st {
      * with different optimized implementations of expensive field
      * operations:
      */
+    /* r = a * b */
     int (*field_mul) (const EC_GROUP *, BIGNUM *r, const BIGNUM *a,
                       const BIGNUM *b, BN_CTX *);
+    /* r = a ^ 2 */
     int (*field_sqr) (const EC_GROUP *, BIGNUM *r, const BIGNUM *a, BN_CTX *);
+    /* r = a / b */
     int (*field_div) (const EC_GROUP *, BIGNUM *r, const BIGNUM *a,
                       const BIGNUM *b, BN_CTX *);
     /*-
@@ -155,44 +215,260 @@ struct ec_method_st {
      *
      * If 'a' is zero (or equivalent), you'll get an EC_R_CANNOT_INVERT error.
      */
+    /*
+        该函数会计算a在指定有限域中的乘法逆元,并存储到r中。
+        有限域的除法可以通过乘法逆元实现。
+        椭圆曲线点运算需要求逆元以实现某些坐标变换和计算。
+    */
     int (*field_inv) (const EC_GROUP *, BIGNUM *r, const BIGNUM *a, BN_CTX *);
     /* e.g. to Montgomery */
+    /*
+        field_encode函数用于实现椭圆曲线有限域元素的编码转换。
+        其参数包含:
+        const EC_GROUP *group: 椭圆曲线组,定义了具体的有限域。
+        BIGNUM *r: 保存转换结果的大数对象。
+        const BIGNUM *a: 要编码转换的元素。
+        BN_CTX *ctx: 临时变量上下文。
+        有限域中的元素可以采用不同的编码形式。该函数实现了从一种编码向另一种编码的转换。
+        例如可以是到/从Montgomery编码的转换,或不同基编码的转换等。
+        编码转换可以加速有限域的运算,或减少存储空间。椭圆曲线运算会调用它。
+    */
     int (*field_encode) (const EC_GROUP *, BIGNUM *r, const BIGNUM *a,
                          BN_CTX *);
     /* e.g. from Montgomery */
     int (*field_decode) (const EC_GROUP *, BIGNUM *r, const BIGNUM *a,
                          BN_CTX *);
+    /*
+        field_set_to_one函数用于将一个椭圆曲线有限域中的元素设置为1。
+        其参数包含:
+        const EC_GROUP *group: 椭圆曲线组,定义了具体的有限域。
+        BIGNUM *r: 要设置为1的元素。
+        BN_CTX *ctx: 临时变量上下文。
+        有限域中一般会有一个1元素,该函数将r对应的域元素设置为1。
+        这主要用于椭圆曲线点运算中某些中间变量的初始化。
+        对于不同的有限域表示,设置1的过程也不尽相同。
+        函数返回1表示成功将r设置为1,0表示失败。
+        设置特定元素值可以加速椭圆曲线运算过程,避免重新构造。
+    */
     int (*field_set_to_one) (const EC_GROUP *, BIGNUM *r, BN_CTX *);
     /* private key operations */
     size_t (*priv2oct)(const EC_KEY *eckey, unsigned char *buf, size_t len);
     int (*oct2priv)(EC_KEY *eckey, const unsigned char *buf, size_t len);
+    /*
+        set_private函数用于为一个EC_KEY设置私钥值。
+        其参数包含:
+        EC_KEY *eckey:要设置私钥的EC_KEY对象。
+        const BIGNUM *priv_key: 私钥值。
+        在基于椭圆曲线的公钥密码学中,私钥是一个随机选择的正整数。
+        该函数将用priv_key指定的大数设置为eckey所对应的EC私钥。
+        设置完私钥后,eckey可以用来生成公钥,进行签名等运算。
+        函数返回成功设置的标志:
+        1 表示成功设置私钥。
+        0 表示失败,可能是由于priv_key无效导致。
+        私钥的安全存储和使用是椭圆曲线加密的重要环节。
+    */
     int (*set_private)(EC_KEY *eckey, const BIGNUM *priv_key);
+    /*
+        keygen函数用于生成一个椭圆曲线加密所需的公私钥对。
+        它只有一个参数:
+        EC_KEY *eckey: 用于保存生成的公私钥的EC_KEY对象。
+        该函数会根据传入的EC_KEY所指向的椭圆曲线参数,随机生成一个符合要求的私钥,然后基于该私钥派生生成对应的公钥。
+        最后将新生成的公私钥对保存到eckey中。
+        这样调用者可以通过一个eckey获取椭圆曲线加密所需的公私钥。
+        函数返回1表示密钥对生成成功,0表示失败。
+        失败可能由于eckey对象问题,或曲线不合法等原因。
+        keypair的生成是椭圆曲线加密应用的第一步。
+    */
     int (*keygen)(EC_KEY *eckey);
+    /*
+        keycheck函数用于检查一个EC_KEY中的公钥是否与私钥对应匹配。
+        它的参数只有:
+        const EC_KEY *eckey: 要检查的EC_KEY对象。
+        该函数会取出eckey中的公钥和私钥,基于私钥重新派生一次公钥,然后比较两个公钥是否匹配。
+        如果匹配,说明公钥和私钥是对应同一椭圆曲线点的,确保私钥的合法性。
+        如果不匹配,说明公钥是不合法的,私钥与其不匹配。
+        这个函数用于验证一个存在的EC密钥对的正确性和一致性。
+        函数返回1表示密钥匹配检查成功,0表示失败,密钥不匹配。
+        密钥对的检查可防止使用错误的公私钥导致加密失败。
+    */
     int (*keycheck)(const EC_KEY *eckey);
+    /*
+        keygenpub函数用于仅生成椭圆曲线加密所需的公钥。
+        它的参数只有:
+        EC_KEY *eckey: 用于保存生成公钥的EC_KEY对象。
+        该函数会根据eckey中指定的椭圆曲线参数,随机生成对应的公钥,并保存到eckey中。
+        它不同于keygen的是,只产生公钥,不生成配对的私钥。
+        适用于仅需要公钥的场景,如验证签名等。不会产生任何私钥信息。
+        函数返回1表示公钥生成成功,0则失败,主要由于eckey对象问题导致。
+        单独的公钥生成可以避免一些场景下的私钥泄露风险。
+    */
     int (*keygenpub)(EC_KEY *eckey);
     int (*keycopy)(EC_KEY *dst, const EC_KEY *src);
+    /*
+        keyfinish函数用于完成一个EC_KEY密钥对的销毁和释放。
+        它的参数只有:
+        EC_KEY *eckey - 要销毁的EC_KEY对象
+        在使用椭圆曲线密码学完成加解密或签名验证后,就不再需要保存密钥信息。
+        keyfinish提供了一个销毁eckey所包含密钥信息的接口。
+        该函数会清除eckey中存储的私钥信息,释放与之相关的内存资源。
+        这可以防止密钥信息留存被恶意获取。
+        调用者在不再需要EC密钥时,应该调用keyfinish销毁其信息,以提高安全性。
+        销毁密钥对信息也有助于减少内存占用。
+        keyfinish返回没有具体返回值,通常不会失败。
+    */
     void (*keyfinish)(EC_KEY *eckey);
     /* custom ECDH operation */
+    /*
+        ecdh_compute_key函数是ECDH密钥协商算法的核心计算函数。
+        它的参数包含:
+        unsigned char **pout: 保存计算所得共享密钥的缓冲区指针。
+        size_t *poutlen: pout缓冲区长度指针。
+        const EC_POINT *pub_key: 对方的公钥。
+        const EC_KEY *ecdh: 自己的ECDH密钥。
+        该函数会利用自己的ECDH私钥和对方的公钥,计算出一个共享的密钥值。
+        密钥值将以字节数组形式保存在pout所指内存缓冲区中,长度通过poutlen返回。
+        这个共享密钥可以用于双方后的对话加密。
+        函数返回成功计算的标志:
+        1表示成功,0表示失败。
+        失败可能是由于内存错误或传入键无效等原因。
+        该函数是完成ECDH协商的最后一步,计算共享密钥。
+    */
     int (*ecdh_compute_key)(unsigned char **pout, size_t *poutlen,
                             const EC_POINT *pub_key, const EC_KEY *ecdh);
     /* custom ECDSA */
+    /*
+        ecdsa_sign_setup函数用于准备和初始化ECDSA签名的相关参数。
+        它的参数包含:
+        EC_KEY *eckey: 签名用的私钥。
+        BN_CTX *ctx: big number上下文。
+        BIGNUM **kinvp: 签名随机数k的模n的乘法逆元。
+        BIGNUM **rp: 签名参数r。
+        在生成ECDSA签名时,需要选择一个随机数k,然后计算k的模n的逆元k^(-1)和参数r。
+        该函数会根据传入的私钥,生成这些参数,并通过kinvp和rp指针返回出来。
+        调用者接下来可以使用这些参数计算ECDSA签名中的s值。
+        返回1表示成功,0失败,主要是由于内存错误或参数无效。
+        该函数用于完成ECDSA签名参数准备,是签名前的初始化步骤。
+    */
     int (*ecdsa_sign_setup)(EC_KEY *eckey, BN_CTX *ctx, BIGNUM **kinvp,
                             BIGNUM **rp);
+    /*
+        ecdsa_sign_sig函数用于生成ECDSA签名的数字签名值。
+        它的参数包含:
+        const unsigned char *dgst: 消息散列值。
+        int dgstlen: 消息散列长度。
+        const BIGNUM *kinv: 随机数k的模n的乘法逆元。
+        const BIGNUM *r: 签名参数r。
+        EC_KEY *eckey: 签名的私钥。
+        该函数会根据传入的消息散列,以及之前准备的kinv,r参数,基于eckey指定的私钥,计算出ECDSA签名的数字签名值(r,s)。
+        然后将其以ECDSA_SIG结构体形式返回。
+        调用者需要提供消息散列和之前ecdsa_sign_setup准备的参数。
+        返回NULL表示失败,成功则返回包含签名r,s的ECDSA_SIG。
+        该函数是完成ECDSA签名最后一步,计算签名值的核心部分。
+    */
     ECDSA_SIG *(*ecdsa_sign_sig)(const unsigned char *dgst, int dgstlen,
                                  const BIGNUM *kinv, const BIGNUM *r,
                                  EC_KEY *eckey);
+    /*
+        ecdsa_verify_sig函数用于验证ECDSA签名的正确性。
+        它的参数包含:
+        const unsigned char *dgst: 消息散列值。
+        int dgstlen: 消息散列长度。
+        const ECDSA_SIG *sig: ECDSA签名值。
+        EC_KEY *eckey: 公钥。
+        该函数会接收原消息散列、对应的ECDSA签名sig,以及签名的公钥eckey。
+        然后根据ECDSA签名算法验证sig对该消息散列的有效性。
+        如果验证成功,返回1,表示签名有效。
+        如果验证失败,返回0,表示签名无效。
+        该函数是完成ECDSA签名验证的核心部分,调用者需要提供正确消息和签名。
+        它是椭圆曲线数字签名算法的最后验证步骤。
+    */
     int (*ecdsa_verify_sig)(const unsigned char *dgst, int dgstlen,
                             const ECDSA_SIG *sig, EC_KEY *eckey);
     /* Inverse modulo order */
+    /*
+        field_inverse_mod_ord函数用于计算椭圆曲线群顺序n模逆元。
+        其参数包含:
+        const EC_GROUP *group: 椭圆曲线组
+        BIGNUM *r: 逆元计算结果
+        const BIGNUM *x: 要求逆元的元素
+        BN_CTX *ctx: BN整数临时变量
+        在椭圆曲线密码学中,群指点构成的椭圆曲线加法群,其阶数为n。
+        该函数计算x在模n意义下的乘法逆元,即满足 xy ≡ 1 (mod n)的y,存储在r中。
+        这里的模n逆运算需要采用扩展欧几里得算法。
+        该函数被椭圆曲线签名算法调用,以计算签名参数的值。
+        返回1成功,0表示失败,主要是x无穷远点时不存在逆。
+        模阶逆运算是椭圆曲线密码学特有的数学工具。
+    */
     int (*field_inverse_mod_ord)(const EC_GROUP *, BIGNUM *r,
                                  const BIGNUM *x, BN_CTX *);
+    /*
+        blind_coordinates函数用于椭圆曲线点坐标的盲化。
+        其参数包含:
+        const EC_GROUP *group: 椭圆曲线组
+        EC_POINT *p: 需要盲化的点
+        BN_CTX *ctx: BN变量临时空间
+        椭圆曲线加密和签名中,有时需要在不知道确切坐标的情况下操作曲线点,这时可以使用盲化技术。
+        该函数会生成一个随机数,使用它来变换点p的坐标,获得一个盲化的新坐标。
+        新坐标下点的值相等,但随机化了表示形式。
+        这样可以在不暴露真实坐标值的情况下使用该点。
+        盲化技术通常用于数字签名等密码协议中,以防止数据泄露。
+        函数返回1表示成功,0失败。失败主要是内存错误或传入点无效。
+        通过盲化提高了椭圆曲线操作的保密性和安全性。
+    */
     int (*blind_coordinates)(const EC_GROUP *group, EC_POINT *p, BN_CTX *ctx);
+    /*
+        ladder_pre函数是椭圆曲线加密中的梯子算法(Ladder algorithm)中的初始化预计算步骤。
+        其参数包含:
+        const EC_GROUP *group: 椭圆曲线
+        EC_POINT *r: 结果点
+        EC_POINT *s: 临时辅助点
+        EC_POINT *p: 固定参数点
+        BN_CTX *ctx: BN变量空间
+        梯子算法用于高效计算标量乘法 kP。该函数进行预计算:
+        初始化结果点r和辅助点s
+        计算固定参数点p的2倍点q = 2p
+        预计算可以提高后续梯子步进运算的效率。
+        函数返回1表示成功,0则失败,主要由于内存分配问题。
+        该函数与ladder_step、ladder_post 一起实现梯子算法。预计算是首步。
+    */
     int (*ladder_pre)(const EC_GROUP *group,
                       EC_POINT *r, EC_POINT *s,
                       EC_POINT *p, BN_CTX *ctx);
+    /*
+        ladder_step函数实现了椭圆曲线加密中梯子算法(Ladder algorithm)的主体步进逻辑。
+        其参数包含:
+        const EC_GROUP *group: 椭圆曲线
+        EC_POINT *r: 结果点
+        EC_POINT *s: 临时辅助点
+        EC_POINT *p: 固定参数点
+        BN_CTX *ctx: BN变量空间
+        该函数会根据标量二进制位,选择性地进行点加减运算:
+        当位为1时,执行 r = r + s, s = 2s
+        当位为0时,执行 s = s + r, r = 2r
+        依次迭代,可以高效计算标量乘法r = kP。
+        它结合ladder_pre和ladder_post,实现整个梯子算法。
+        返回1表示成功,0则失败,主要由于内存错误。
+        梯子算法是计算椭圆曲线标量乘法的重要方法之一。
+    */
     int (*ladder_step)(const EC_GROUP *group,
                        EC_POINT *r, EC_POINT *s,
                        EC_POINT *p, BN_CTX *ctx);
+    /*
+        ladder_post函数是椭圆曲线加密中梯子算法的后处理函数。
+        其参数包含:
+        const EC_GROUP *group: 椭圆曲线
+        EC_POINT *r: 结果点
+        EC_POINT *s: 临时辅助点
+        EC_POINT *p: 固定参数点
+        BN_CTX *ctx: BN变量空间
+        在执行完梯子算法的主体步进运算后,需要进行后处理:
+        检查辅助点s是否为无穷远点,如果不是,需要加回结果点r中。
+        将结果点r中的z坐标设为1,转换到仿射坐标。
+        这确保了最终的结果点r为准确的标量乘积kP结果。
+        与ladder_pre和ladder_step一起,完成整个梯子算法。
+        返回1成功,0失败,主要由内存错误造成。
+        梯子算法需要合理设计预处理和后处理,以保证计算结果正确。
+    */
     int (*ladder_post)(const EC_GROUP *group,
                        EC_POINT *r, EC_POINT *s,
                        EC_POINT *p, BN_CTX *ctx);
@@ -205,6 +481,8 @@ typedef struct nistp224_pre_comp_st NISTP224_PRE_COMP;
 typedef struct nistp256_pre_comp_st NISTP256_PRE_COMP;
 typedef struct nistp521_pre_comp_st NISTP521_PRE_COMP;
 typedef struct nistz256_pre_comp_st NISTZ256_PRE_COMP;
+typedef struct sm2p256_pre_comp_st SM2P256_PRE_COMP;
+typedef struct sm2z256_pre_comp_st SM2Z256_PRE_COMP;
 typedef struct ec_pre_comp_st EC_PRE_COMP;
 
 struct ec_group_st {
@@ -264,7 +542,9 @@ struct ec_group_st {
      */
     enum {
         PCT_none,
-        PCT_nistp224, PCT_nistp256, PCT_nistp521, PCT_nistz256,
+        PCT_nistp224, PCT_nistp256, PCT_nistp521, PCT_nistz256, 
+        PCT_sm2p256,
+        PCT_sm2z256,
         PCT_ec
     } pre_comp_type;
     union {
@@ -272,6 +552,8 @@ struct ec_group_st {
         NISTP256_PRE_COMP *nistp256;
         NISTP521_PRE_COMP *nistp521;
         NISTZ256_PRE_COMP *nistz256;
+        SM2P256_PRE_COMP *sm2p256;
+        SM2Z256_PRE_COMP *sm2z256;
         EC_PRE_COMP *ec;
     } pre_comp;
 
@@ -615,6 +897,13 @@ EC_GROUP *ossl_ec_group_new_ex(OSSL_LIB_CTX *libctx, const char *propq,
  */
 const EC_METHOD *EC_GFp_nistz256_method(void);
 #endif
+
+#ifndef OPENSSL_NO_SM2
+# if defined(ECP_NISTZ256_ASM) && BN_BITS2 == 64 && !defined(GMSSL_NO_TURBO)
+const EC_METHOD *EC_GFp_sm2z256_method(void);
+# endif
+#endif
+
 #ifdef S390X_EC_ASM
 const EC_METHOD *EC_GFp_s390x_nistp256_method(void);
 const EC_METHOD *EC_GFp_s390x_nistp384_method(void);
