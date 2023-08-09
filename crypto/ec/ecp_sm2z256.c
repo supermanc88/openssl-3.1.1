@@ -1615,9 +1615,9 @@ const EC_METHOD *EC_GFp_sm2z256_method(void)
         0, /* keycopy */
         0, /* keyfinish */
         ossl_ecdh_simple_compute_key,
-        ossl_ecdsa_simple_sign_setup,
-        ossl_ecdsa_simple_sign_sig,
-        ossl_ecdsa_simple_verify_sig,
+        0,
+        0,
+        0,
         0,                                          /* can be #define-d NULL */
         0,                                          /* blind_coordinates */
         0,                                          /* ladder_pre */

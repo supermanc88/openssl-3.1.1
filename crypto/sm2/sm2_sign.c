@@ -20,6 +20,69 @@
 #include <openssl/bn.h>
 #include <string.h>
 
+static int sm2_sign_idx = -1;
+
+static void sm2_precompute_free(void *parent, void *ptr, CRYPTO_EX_DATA *ad,
+	int idx, long argl, void *argp)
+{
+	BIGNUM *bn = (BIGNUM *)CRYPTO_get_ex_data(ad, sm2_sign_idx);
+	if (bn) {
+		BN_clear_free(bn);
+		CRYPTO_set_ex_data(ad, sm2_sign_idx, NULL);
+	}
+
+	(void)parent;
+	(void)ptr;
+	(void)idx;
+	(void)argl;
+	(void)argp;
+}
+
+static int sm2_precompute_1addDa_inverse(EC_KEY *ec_key, BIGNUM *dA, BIGNUM *order, BN_CTX *ctx)
+{
+    int ret = 0;
+
+    /* do pre compute (1 + da)^-1 */
+    if (sm2_sign_idx < 0) {
+        if ((sm2_sign_idx = EC_KEY_get_ex_new_index(0, NULL, NULL, NULL,
+                                                    sm2_precompute_free)) < 0) {
+            ERR_raise(ERR_LIB_SM2, ERR_R_MALLOC_FAILURE);
+            goto end;
+        }
+    }
+    
+    if (!EC_KEY_get_ex_data(ec_key, sm2_sign_idx)) {
+        BIGNUM *bn = BN_new();
+        if (bn == NULL) {
+            ERR_raise(ERR_LIB_SM2, ERR_R_MALLOC_FAILURE);
+            goto end;
+        }
+
+        if (!BN_mod_add(bn, dA, BN_value_one(), order, ctx)) {
+            ERR_raise(ERR_LIB_SM2, ERR_R_BN_LIB);
+            BN_free(bn);
+            goto end;
+        }
+
+        if (!ossl_ec_group_do_inverse_ord(EC_KEY_get0_group(ec_key), bn, bn, ctx)) {
+            ERR_raise(ERR_LIB_SM2, ERR_R_BN_LIB);
+            BN_free(bn);
+            goto end;
+        }
+
+        if (!EC_KEY_set_ex_data(ec_key, sm2_sign_idx, bn)) {
+            ERR_raise(ERR_LIB_SM2, ERR_R_MALLOC_FAILURE);
+            BN_free(bn);
+            goto end;
+        }
+    }
+
+    ret = 1;
+
+end:
+    return ret;
+}
+
 int ossl_sm2_compute_z_digest(uint8_t *out,
                               const EVP_MD *digest,
                               const uint8_t *id,
@@ -272,7 +335,7 @@ static ECDSA_SIG *sm2_sig_gen(const EC_KEY *key, const BIGNUM *e)
 
         if (BN_cmp(rk, order) == 0)
             continue;
-
+#if 0
         if (!BN_add(s, dA, BN_value_one())
                 || !ossl_ec_group_do_inverse_ord(group, s, s, ctx)
                 || !BN_mod_mul(tmp, dA, r, order, ctx)
@@ -281,7 +344,18 @@ static ECDSA_SIG *sm2_sig_gen(const EC_KEY *key, const BIGNUM *e)
             ERR_raise(ERR_LIB_SM2, ERR_R_BN_LIB);
             goto done;
         }
-
+#else
+        // s = (d'(k + r) -r) mod n
+        if (!sm2_precompute_1addDa_inverse(key, dA, order, ctx)) {
+            ERR_raise(ERR_LIB_SM2, ERR_R_INTERNAL_ERROR);
+            goto done;
+        }
+        if (!BN_mod_mul(s, EC_KEY_get_ex_data(key, sm2_sign_idx), rk, order, ctx)
+                || !BN_mod_sub(s, s, r, order, ctx)) {
+            ERR_raise(ERR_LIB_SM2, ERR_R_BN_LIB);
+            goto done;
+        }
+#endif
         /* try again if s == 0 */
         if (BN_is_zero(s))
             continue;
