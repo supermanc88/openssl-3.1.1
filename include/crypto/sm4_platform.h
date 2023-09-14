@@ -33,6 +33,9 @@ static inline int vpsm4_capable(void)
 #   define HWSM4_ecb_encrypt sm4_v8_ecb_encrypt
 #   define HWSM4_ctr32_encrypt_blocks sm4_v8_ctr32_encrypt_blocks
 #  endif
+#  if defined(AVXSM4_ASM) && defined(__x86_64__)
+#   define AVXSM4_CAPABLE (OPENSSL_ia32cap_P[1]&(1<<(57-32)))
+#  endif
 # endif /* OPENSSL_CPUID_OBJ */
 
 # if defined(HWSM4_CAPABLE)
@@ -71,5 +74,21 @@ void vpsm4_ctr32_encrypt_blocks(const unsigned char *in, unsigned char *out,
                                 const unsigned char ivec[16]);
 # endif /* VPSM4_CAPABLE */
 
+#ifdef AVXSM4_CAPABLE
+void aesni_sm4_encrypt(const unsigned char *in, unsigned char *out,
+                   const SM4_KEY *key);
+void aesni_sm4_decrypt(const unsigned char *in, unsigned char *out,
+                   const SM4_KEY *key);
+void aesni_sm4_ecb_encrypt(const unsigned char *in, unsigned char *out,
+                       size_t length, const SM4_KEY *key,
+                       const int enc);
+void aesni_sm4_cbc_encrypt(const unsigned char *in, unsigned char *out,
+                       size_t length, const SM4_KEY *key,
+                       unsigned char *ivec, const int enc) ;
+void aesni_sm4_ctr_encrypt(const unsigned char *in, unsigned char *out,
+                                size_t len, const SM4_KEY *key,
+                                const unsigned char ivec[16]);
+
+#endif/* AVXSM4_CAPABLE */
 
 #endif /* OSSL_SM4_PLATFORM_H */

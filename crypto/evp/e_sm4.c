@@ -88,6 +88,17 @@ static int sm4_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                 dat->stream.ecb = (ecb128_f) vpsm4_ecb_encrypt;
         } else
 #endif
+#ifdef AVXSM4_CAPABLE
+        if(AVXSM4_CAPABLE){
+            dat->block = (block128_f)ossl_sm4_decrypt;
+            ossl_sm4_set_key(key, EVP_CIPHER_CTX_get_cipher_data(ctx));
+            dat->stream.cbc = NULL;
+            if (mode == EVP_CIPH_ECB_MODE)
+                dat->stream.ecb = (ecb128_f) aesni_sm4_ecb_encrypt;
+            else if (mode == EVP_CIPH_CBC_MODE)
+                dat->stream.cbc = (cbc128_f) aesni_sm4_cbc_encrypt;
+        } else
+#endif
         {
             dat->block = (block128_f) ossl_sm4_decrypt;
             ossl_sm4_set_key(key, EVP_CIPHER_CTX_get_cipher_data(ctx));
@@ -128,6 +139,17 @@ static int sm4_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
         else if (mode == EVP_CIPH_CTR_MODE)
             dat->stream.ctr = (ctr128_f) vpsm4_ctr32_encrypt_blocks;
     } else
+#endif
+#ifdef AVXSM4_CAPABLE
+        if(AVXSM4_CAPABLE){
+            dat->block = (block128_f)ossl_sm4_encrypt;
+            ossl_sm4_set_key(key, EVP_CIPHER_CTX_get_cipher_data(ctx));
+            dat->stream.cbc = NULL;
+            if (mode == EVP_CIPH_ECB_MODE)
+                dat->stream.ecb = (ecb128_f) aesni_sm4_ecb_encrypt;
+            else if (mode == EVP_CIPH_CTR_MODE)
+                dat->stream.ctr = (ctr128_f) aesni_sm4_ctr_encrypt;
+        } else
 #endif
     {
         dat->block = (block128_f) ossl_sm4_encrypt;
